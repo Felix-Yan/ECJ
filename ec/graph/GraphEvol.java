@@ -7,6 +7,7 @@ import java.util.Set;
 import ec.EvolutionState;
 import ec.Individual;
 import ec.Problem;
+import ec.multiobjective.MultiObjectiveFitness;
 import ec.simple.SimpleFitness;
 import ec.simple.SimpleProblemForm;
 import ec.util.Log;
@@ -14,7 +15,8 @@ import ec.util.Log;
 public class GraphEvol extends Problem implements SimpleProblemForm {
 
 	@Override
-	public void evaluate(EvolutionState state, Individual ind, int subpopulation, int threadnum) {
+	public void evaluate(EvolutionState state, Individual ind, 
+			int subpopulation, int threadnum) {
 		GraphInitializer init = (GraphInitializer) state.initializer;
 		if (init.runningOwls) {
 			evaluateOwls(init, state, ind, subpopulation, threadnum);
@@ -24,7 +26,8 @@ public class GraphEvol extends Problem implements SimpleProblemForm {
 		}
 	}
 
-	public void evaluateQoS(GraphInitializer init, EvolutionState state, Individual ind, int subpopulation, int threadnum) {
+	public void evaluateQoS(GraphInitializer init, EvolutionState state, 
+			Individual ind, int subpopulation, int threadnum) {
 		if (ind.evaluated) return;   //don't evaluate the individual if it's already evaluated
 		if (!(ind instanceof GraphIndividual))
 			state.output.fatal("Whoa!  It's not a GraphIndividual!!!",null);
@@ -34,9 +37,15 @@ public class GraphEvol extends Problem implements SimpleProblemForm {
 		double r = 1.0;
 		double t = 0.0;
 		double c = 0.0;
+		double[] objectives = ((MultiObjectiveFitness)ind.fitness).getObjectives();
 
 		for (Node n : ind2.considerableNodeMap.values()) {
 			double[] qos = n.getQos();
+			
+			//debug
+			/*System.out.println("A: "+qos[GraphInitializer.AVAILABILITY]);
+			System.out.println("R: "+qos[GraphInitializer.RELIABILITY]);*/
+			
 			a *= qos[GraphInitializer.AVAILABILITY];
 			r *= qos[GraphInitializer.RELIABILITY];
 			c += qos[GraphInitializer.COST];
@@ -44,26 +53,18 @@ public class GraphEvol extends Problem implements SimpleProblemForm {
 
 		// Calculate longest time
 		t = findLongestPath(ind2);
+		
+		objectives[0] = t;
+		objectives[1] = c;
+		objectives[2] = a;
+		objectives[3] = r;
 
-		a = normaliseAvailability(a, init);
-		r = normaliseReliability(r, init);
-
-		//recalculate a and r with base e to make sure they are not too small
-		//a = Math.pow(Math.E*0.5, a-1);
-		//r = Math.pow(Math.E*0.5, r-1);
-		t = normaliseTime(t, init);
-		c = normaliseCost(c, init);
-
-		double fitness = init.w1 * a + init.w2 * r + init.w3 * t + init.w4 * c;
-
-		//System.out.println("maxA: "+init.maxAvailability+", maxR: "+init.maxReliability); //debug
-		//System.out.println("a: "+a+", r: "+r+", t: "+t+", c: "+c);//show values of 4 attributes, debug
-
-		((SimpleFitness)ind2.fitness).setFitness(state,
-				// ...the fitness...
-				fitness,
-				///... is the individual ideal?  Indicate here...
-				false);
+		ind2.setAvailability(a);
+		ind2.setReliability(r);
+		ind2.setCost(c);
+		ind2.setTime(t);
+		
+		((MultiObjectiveFitness)ind.fitness).setObjectives(state, objectives);
 
 		ind2.evaluated = true;
 	}
@@ -91,38 +92,6 @@ public class GraphEvol extends Problem implements SimpleProblemForm {
 				isIdeal);
 
 		ind2.evaluated = true;
-	}
-
-	/*
-	 * The normalisation will maximize a and r, minimize t and c.
-	 */
-
-	private double normaliseAvailability(double availability, GraphInitializer init) {
-		if (init.maxAvailability - init.minAvailability == 0.0)
-			return 1.0;
-		else
-			return (availability - init.minAvailability)/(init.maxAvailability - init.minAvailability);
-	}
-
-	private double normaliseReliability(double reliability, GraphInitializer init) {
-		if (init.maxReliability - init.minReliability == 0.0)
-			return 1.0;
-		else
-			return (reliability - init.minReliability)/(init.maxReliability - init.minReliability);
-	}
-
-	private double normaliseTime(double time, GraphInitializer init) {
-		if (init.maxTime - init.minTime == 0.0)
-			return 1.0;
-		else
-			return (init.maxTime - time)/(init.maxTime - init.minTime);
-	}
-
-	private double normaliseCost(double cost, GraphInitializer init) {
-		if (init.maxCost - init.minCost == 0.0)
-			return 1.0;
-		else
-			return (init.maxCost - cost)/(init.maxCost - init.minCost);
 	}
 
 	/**

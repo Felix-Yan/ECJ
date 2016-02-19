@@ -173,12 +173,23 @@ public class GraphStatistics extends SimpleShortStatistics {
         // print out fitness info
         if (output)
             {
-            state.output.print("" + popMeanFitness + " " , statisticslog);                                                                                  // mean fitness of pop this gen
+            state.output.print("" + popMeanFitness + " " , statisticslog);        // mean fitness of pop this gen
             state.output.print("" + (popBestOfGeneration.fitness.fitness()) + " " , statisticslog);                 // best fitness of pop this gen
             state.output.print("" + (popBestSoFar.fitness.fitness()) + " " , statisticslog);                // best fitness of pop so far
             state.output.print("" + numNodes + " ", statisticslog);
             state.output.print("" + path + " ", statisticslog);
 
+            //Also print the A, R, C, T values of popBestOfGeneration & popBestSoFar
+            state.output.print("BestOfGeneration(ARCT): ", statisticslog);
+            state.output.print(((GraphIndividual) popBestOfGeneration).getAvailability()+" ", statisticslog);
+            state.output.print(((GraphIndividual) popBestOfGeneration).getReliability()+" ", statisticslog);
+            state.output.print(((GraphIndividual) popBestOfGeneration).getCost()+" ", statisticslog);
+            state.output.print(((GraphIndividual) popBestOfGeneration).getTime()+" ", statisticslog);
+            state.output.print("BestSoFar(ARCT): ", statisticslog);
+            state.output.print(((GraphIndividual) popBestSoFar).getAvailability()+" ", statisticslog);
+            state.output.print(((GraphIndividual) popBestSoFar).getReliability()+" ", statisticslog);
+            state.output.print(((GraphIndividual) popBestSoFar).getCost()+" ", statisticslog);
+            state.output.print(((GraphIndividual) popBestSoFar).getTime()+" ", statisticslog);
             }
 
         // hook for KozaShortStatistics etc.
@@ -192,10 +203,19 @@ public class GraphStatistics extends SimpleShortStatistics {
             // Print the best candidate at the end of the run
             if (state.generation == state.parameters.getInt(new Parameter("generations"), null)-1) {
                 state.output.println(popBestSoFar.toString(), statisticslog);
-                /*state.output.println("nodeOpt "+((GraphIndividual)popBestSoFar).getNodeOptNum(), statisticslog);
-                state.output.println("edgeOpt "+((GraphIndividual)popBestSoFar).getEdgeOptNum(), statisticslog);*/
+                state.output.println("nodeOpt "+((GraphState)state).getTotalNodeOpt(), statisticslog);
+                state.output.println("edgeOpt "+((GraphState)state).getTotalEdgeOpt(), statisticslog);
                 createHistogramLog(state);
                 createHistogramLog(state);
+                //debug, this will print out the all a and r values in each service component of the final solution
+                /*for(Node n: ((GraphIndividual) popBestSoFar).considerableNodeMap.values()){
+                	double[] qos = n.getQos();
+        			System.out.println("A: "+qos[GraphInitializer.AVAILABILITY]);
+                }
+                for(Node n: ((GraphIndividual) popBestSoFar).considerableNodeMap.values()){
+                	double[] qos = n.getQos();
+        			System.out.println("R: "+qos[GraphInitializer.RELIABILITY]);
+                }*/
 
                 // Write node histogram
                 List<String> keyList = new ArrayList<String>(GraphInitializer.nodeCount.keySet());

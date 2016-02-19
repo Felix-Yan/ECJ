@@ -5,6 +5,7 @@ import java.util.Set;
 
 import ec.BreedingPipeline;
 import ec.EvolutionState;
+import ec.Fitness;
 import ec.Individual;
 import ec.util.Parameter;
 
@@ -61,8 +62,9 @@ public class GraphMergePipeline extends BreedingPipeline {
 			GraphIndividual g2 = ((GraphIndividual)inds2[x]);
 
 			if (!init.overlapEnabled || enoughOverlap(g1, g2, init.overlapPercentage)) {
-				GraphIndividual newG = mergeGraphs(g1, g2, init);
-				GraphSpecies species = (GraphSpecies) newG.species;
+				GraphIndividual newG = mergeGraphs(g1, g2, init, state);
+				//This is to access the population species
+				GraphSpecies species = (GraphSpecies)(state.population.subpops[0].species);
 				inds[q] = species.createNewGraph(newG, state, init.startNode.clone(), init.endNode.clone(), init.relevant);
 			}
 			else {
@@ -88,7 +90,7 @@ public class GraphMergePipeline extends BreedingPipeline {
 		return n1;
 	}
 
-	private GraphIndividual mergeGraphs(GraphIndividual g1, GraphIndividual g2, GraphInitializer init) {
+	private GraphIndividual mergeGraphs(GraphIndividual g1, GraphIndividual g2, GraphInitializer init, EvolutionState state) {
 		GraphIndividual newG = new GraphIndividual();
 		// Merge nodes
 		for (Node n: g1.nodeMap.values()) {

@@ -1,16 +1,20 @@
 breedthreads = 1
 evalthreads  = 1
-seed.0       = 5
+seed.0       = 1
 
-state        = ec.simple.SimpleEvolutionState
+state        = ec.graph.GraphState
 pop		     = ec.Population
 init		 = ec.graph.GraphInitializer
 finish		 = ec.simple.SimpleFinisher
-breed		 = ec.simple.SimpleBreeder
-eval		 = ec.simple.SimpleEvaluator
+#breed		 = ec.graph.MOGBMABreeder
+breed		 = ec.multiobjective.nsga2.NSGA2Breeder
+eval		 = ec.multiobjective.nsga2.NSGA2Evaluator
 #stat		 = ec.simple.SimpleStatistics
 #stat        = ec.simple.SimpleShortStatistics
-stat         = ec.graph.GraphStatistics
+#stat         = ec.graph.GraphStatistics
+stat         = ec.multiobjective.MultiObjectiveStatistics
+stat.front   = $front.stat
+
 exch		 = ec.simple.SimpleExchanger
 
 generations		        = 51
@@ -29,14 +33,21 @@ pop.subpop.0.size 		            = 500
 pop.subpop.0.duplicate-retries 	    = 0
 pop.subpop.0.species 		        = ec.graph.GraphSpecies
 pop.subpop.0.species.ind	        = ec.graph.GraphIndividual
-pop.subpop.0.species.fitness 		= ec.simple.SimpleFitness
+pop.subpop.0.species.fitness 		= ec.multiobjective.nsga2.NSGA2MultiObjectiveFitness
+pop.subpop.0.species.fitness.num-objectives = 4
+pop.subpop.0.species.fitness.maximize.0 = false
+pop.subpop.0.species.fitness.maximize.1 = false
+pop.subpop.0.species.fitness.maximize.2 = true
+pop.subpop.0.species.fitness.maximize.3 = true
+
+
 
 pop.subpop.0.species.pipe                      = ec.breed.MultiBreedingPipeline
 pop.subpop.0.species.pipe.num-sources          = 3
 pop.subpop.0.species.pipe.source.0             = ec.graph.GraphMergePipeline
 pop.subpop.0.species.pipe.source.0.prob        = 0.8
 pop.subpop.0.species.pipe.source.0.num-sources = 2
-pop.subpop.0.species.pipe.source.1             = ec.graph.GraphMemeticPipeline
+pop.subpop.0.species.pipe.source.1             = ec.graph.GraphMutationPipeline
 pop.subpop.0.species.pipe.source.1.prob        = 0.1
 pop.subpop.0.species.pipe.source.1.num-sources = 1
 pop.subpop.0.species.pipe.source.2             = ec.graph.GraphReproductionPipeline
@@ -56,6 +67,7 @@ eval.problem         = ec.graph.GraphEvol
 composition-task     = src/problem0802.xml
 composition-taxonomy = src/taxonomy0802.xml
 composition-services = src/services-output0802.xml
+#composition-services = src/0808New.xml
 #composition-task     = src/test_problem.xml
 #composition-taxonomy = src/test_taxonomy.xml
 #composition-services = src/test_serv.xml

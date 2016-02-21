@@ -54,23 +54,20 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 			// uh oh, wrong kind of individual
 			state.output.fatal("GraphAppendPipeline didn't get a GraphIndividual. The offending individual is in subpopulation "
 					+ subpopulation + " and it's:" + inds[start]);
-		// Perform mutation
+		// Perform local optimization
 		for(int q=start;q<n+start;q++) {
 			GraphIndividual graph = (GraphIndividual)inds[q];
-			GraphSpecies species = (GraphSpecies) graph.species;
 			Object[] nodes = graph.nodeMap.values().toArray();
-			// Select node from which to perform mutation
+			// Select node from which to perform local optimization
 			Node selected = null;
 			while (selected == null) {
 				Node temp = (Node) nodes[init.random.nextInt( nodes.length )];
-				//Do not allow mutations for start or end node
+				//Do not allow local optimizations for start or end node
 				if (!temp.getName().equals( "end" ) && !temp.getName().equals( "start" )) {
 					selected = temp;
 					newSelection = temp;
 				}
 			}
-			/*int nodeOptNum = graph.getNodeOptNum();
-			int edgeOptNum = graph.getEdgeOptNum();*/
 			((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);
 			double bestFitness = graph.fitness.fitness();
 			graph.evaluated = false;

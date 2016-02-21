@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import ec.Fitness;
 import ec.Individual;
 import ec.multiobjective.MultiObjectiveFitness;
 import ec.simple.SimpleFitness;
@@ -167,8 +168,7 @@ public class GraphIndividual extends Individual {
             newE.getFromNode().getOutgoingEdgeList().add( newE );
             newE.getToNode().getIncomingEdgeList().add( newE );
         }
-        /*other.setEdgeOptNum(this.edgeOptNum);
-        other.setNodeOptNum(this.nodeOptNum);*/
+        other.fitness = (Fitness)(this.fitness.clone());
     }
 
     /**

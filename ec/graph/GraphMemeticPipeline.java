@@ -106,8 +106,8 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 				nodesToReplace = findNodesToRemove(selected);//update nodesToReplace
 				edgesMemetic = findEdges(selected);//selected is a node from "currentGraph"
 				bestFitness = currentBestFitness;
-				currentFitness1 = findFitness1for1(nodesToReplace, init, state, currentGraph, subpopulation, thread,selected);
-				currentFitness2 = findFitness2for1(edgesMemetic, init, state, currentGraph, subpopulation, thread, selected);
+				currentFitness1 = findFitness1for1(nodesToReplace, init, state, currentGraph,graph, subpopulation, thread,selected);
+				currentFitness2 = findFitness2for1(edgesMemetic, init, state, currentGraph,graph, subpopulation, thread, selected);
 				//betterThan is true if currentFitness1 has lower ranker or equal rank
 				//but higher sparsity
 				if(currentFitness1.betterThan(currentFitness2) ){
@@ -141,7 +141,7 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 	 * This returns a fitness value after performing 2-1 node local optimization.
 	 */
 	private NSGA2MultiObjectiveFitness findFitness2for1(Set<Edge> domain, GraphInitializer init, EvolutionState state,
-			GraphIndividual graph, int subpopulation, int thread, Node selected){
+			GraphIndividual graph, GraphIndividual origin, int subpopulation, int thread, Node selected){
 		//((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);//graph here is the "currentGraph"
 		//graph.evaluated = false;
 		NSGA2MultiObjectiveFitness currentFitness = (NSGA2MultiObjectiveFitness)graph.fitness;
@@ -164,15 +164,14 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 				}
 				//if equal rank, compare the sparsity.
 				else if( ((MultiObjectiveFitness)fitness).equivalentTo( (MultiObjectiveFitness)currentFitness)){
-					int rankIndex = fitness.rank;
+					int rankIndex = currentFitness.rank;
 					Individual[] dummy = new Individual[0];
 					ArrayList ranks = ((GraphState)state).getRanks();
 					Individual[] rank = (Individual[])((ArrayList)(ranks.get(rankIndex))).toArray(dummy);
-					//ArrayList list = (ArrayList)(ranks.get(rankIndex));
 					//find the index of the graph in the original rank
 					ArrayList <Individual> list = new ArrayList<Individual>(Arrays.asList(rank));
-					int i = list.indexOf(graph);
-					
+					int i = list.indexOf(origin);
+					//calculate sparsity for innerGraph
 					Individual [] newRank = new Individual[list.size()];
 					newRank = list.toArray(newRank);
 					newRank[i] = innerGraph;
@@ -207,7 +206,7 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 	 * This returns the best new fitness of the graph after a local search
 	 */
 	private NSGA2MultiObjectiveFitness findFitness1for1(Set<Node> domain, GraphInitializer init, EvolutionState state,
-			GraphIndividual graph, int subpopulation, int thread, Node selected){
+			GraphIndividual graph, GraphIndividual origin, int subpopulation, int thread, Node selected){
 		//((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);
 		//graph.evaluated = false;
 		NSGA2MultiObjectiveFitness currentFitness = (NSGA2MultiObjectiveFitness)graph.fitness;
@@ -222,11 +221,32 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 				replaceNode(node, neighbour, innerGraph, init);
 				((GraphEvol)state.evaluator.p_problem).evaluate(state, innerGraph, subpopulation, thread);
 				NSGA2MultiObjectiveFitness fitness = (NSGA2MultiObjectiveFitness)innerGraph.fitness;
-				if(fitness.betterThan(currentFitness) ){
+				if(fitness.paretoDominates(currentFitness) ){
 					currentFitness = fitness;
 					innerGraph.copyTo(bestGraph);
 					replaced = node;
 					newMember = neighbour;
+				}
+				//if equal rank, compare the sparsity.
+				else if( ((MultiObjectiveFitness)fitness).equivalentTo( (MultiObjectiveFitness)currentFitness)){
+					int rankIndex = currentFitness.rank;
+					Individual[] dummy = new Individual[0];
+					ArrayList ranks = ((GraphState)state).getRanks();
+					Individual[] rank = (Individual[])((ArrayList)(ranks.get(rankIndex))).toArray(dummy);
+					//find the index of the graph in the original rank
+					ArrayList <Individual> list = new ArrayList<Individual>(Arrays.asList(rank));
+					int i = list.indexOf(origin);
+					//calculate sparsity for innerGraph
+					Individual [] newRank = new Individual[list.size()];
+					newRank = list.toArray(newRank);
+					newRank[i] = innerGraph;
+					((MOGBMAEvaluator)(state.evaluator)).assignSparsity(newRank);
+					if(((NSGA2MultiObjectiveFitness)innerGraph.fitness).sparsity > currentFitness.sparsity){
+						currentFitness = fitness;
+						innerGraph.copyTo(bestGraph);
+						replaced = node;
+						newMember = neighbour;
+					}
 				}
 			}
 

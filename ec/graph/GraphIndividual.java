@@ -9,6 +9,7 @@ import java.util.Set;
 import ec.Fitness;
 import ec.Individual;
 import ec.multiobjective.MultiObjectiveFitness;
+import ec.multiobjective.nsga2.NSGA2MultiObjectiveFitness;
 import ec.simple.SimpleFitness;
 import ec.util.Parameter;
 
@@ -168,7 +169,7 @@ public class GraphIndividual extends Individual {
             newE.getFromNode().getOutgoingEdgeList().add( newE );
             newE.getToNode().getIncomingEdgeList().add( newE );
         }
-        other.fitness = (Fitness)(this.fitness.clone());
+        other.fitness = (Fitness)(((NSGA2MultiObjectiveFitness)this.fitness).clone());
     }
 
     /**

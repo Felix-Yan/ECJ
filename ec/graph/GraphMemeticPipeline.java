@@ -1,6 +1,7 @@
 package ec.graph;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -12,7 +13,10 @@ import java.util.Set;
 import ec.BreedingPipeline;
 import ec.EvolutionState;
 import ec.Individual;
+import ec.multiobjective.nsga2.NSGA2MultiObjectiveFitness;
+import ec.multiobjective.MultiObjectiveFitness;
 import ec.util.Parameter;
+import ec.graph.MOGBMAEvaluator;
 
 /**
  * This algorithm will choose the better one of 2-1 or 1-1 operation in each loop.
@@ -68,19 +72,17 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 					newSelection = temp;
 				}
 			}
-			((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);
-			double bestFitness = graph.fitness.fitness();
-			graph.evaluated = false;
-			double currentBestFitness = bestFitness;
-			double currentFitness1 = 0;
-			double currentFitness2 = 0;
-			//reset currentGraph and newDomain
+			//((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);
+			NSGA2MultiObjectiveFitness bestFitness = (NSGA2MultiObjectiveFitness)graph.fitness;
+			NSGA2MultiObjectiveFitness currentBestFitness = bestFitness;
+			NSGA2MultiObjectiveFitness currentFitness1 = null;
+			NSGA2MultiObjectiveFitness currentFitness2 = null;
+			//reset currentGraph
 			GraphIndividual currentGraph = new GraphIndividual();
 			newSelection1 = null;
 			newSelection2 = null;
 			tempGraph1 = new GraphIndividual();
 			tempGraph2 = new GraphIndividual();
-			//newDomain = new HashSet<Edge>();//unnecessary
 			graph.copyTo(currentGraph);
 			selected = currentGraph.nodeMap.get(selected.getName());//change the reference to the currentGraph
 			// Find all nodes that should be locally searched and possibly replaced
@@ -93,12 +95,6 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 			do{
 				totalNodeOpt = currentNodeOpt;
 				totalEdgeOpt = currentEdgeOpt;
-				//debug
-				/*if(newSelection1 != null){
-					if(newSelection1.getName().equals("serv470983406")){
-						System.out.println("time to debug");
-					}
-				}*/
 				//update the selected node in each loop
 				if(newSelection != null){
 					selected = currentGraph.nodeMap.get(newSelection.getName());
@@ -111,9 +107,10 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 				edgesMemetic = findEdges(selected);//selected is a node from "currentGraph"
 				bestFitness = currentBestFitness;
 				currentFitness1 = findFitness1for1(nodesToReplace, init, state, currentGraph, subpopulation, thread,selected);
-				//if(newDomain.size() != 0) edgesMemetic = newDomain;
 				currentFitness2 = findFitness2for1(edgesMemetic, init, state, currentGraph, subpopulation, thread, selected);
-				if(currentFitness1 >= currentFitness2){
+				//betterThan is true if currentFitness1 has lower ranker or equal rank
+				//but higher sparsity
+				if(currentFitness1.betterThan(currentFitness2) ){
 					tempGraph1.copyTo(currentGraph);
 					//newDomain.clear();;//reset newDomain if 2for1 is not preferred, unnecessary
 					newSelection = newSelection1;
@@ -125,10 +122,9 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 					currentBestFitness = currentFitness2;
 					currentEdgeOpt++;
 				}
-			}while(currentBestFitness > bestFitness);
+			}while(currentBestFitness.betterThan(bestFitness) );
 			((GraphState)state).setTotalNodeOpt(totalNodeOpt);
 			((GraphState)state).setTotalEdgeOpt(totalEdgeOpt);
-			//System.out.println(totalNodeOpt +", "+totalEdgeOpt);
 			inds[q] = currentGraph;
 			//debug
 			count++;
@@ -144,30 +140,49 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 	/*
 	 * This returns a fitness value after performing 2-1 node local optimization.
 	 */
-	private double findFitness2for1(Set<Edge> domain, GraphInitializer init, EvolutionState state,
+	private NSGA2MultiObjectiveFitness findFitness2for1(Set<Edge> domain, GraphInitializer init, EvolutionState state,
 			GraphIndividual graph, int subpopulation, int thread, Node selected){
-		((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);//graph here is the "currentGraph"
-		graph.evaluated = false;
-		double currentFitness = graph.fitness.fitness();
+		//((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);//graph here is the "currentGraph"
+		//graph.evaluated = false;
+		NSGA2MultiObjectiveFitness currentFitness = (NSGA2MultiObjectiveFitness)graph.fitness;
 		GraphIndividual bestGraph = new GraphIndividual();
 		Node newMember = null;//The new node added in the subgraph
 		Edge replaced = null;//The old edge replaced in the subgraph
 		for (Edge edge : domain) {
 			Set<Node> neighbours = find2for1Candidates(edge,init);
-			/*if(neighbours.size() != 0){
-				System.out.println("neighbours: "+neighbours.size()+"===========================================");//debug
-			}*/
 			for(Node neighbour: neighbours){
 				GraphIndividual innerGraph = new GraphIndividual();
 				graph.copyTo(innerGraph);
 				replaceNode2for1(edge, neighbour, innerGraph, init, selected);
 				((GraphEvol)state.evaluator.p_problem).evaluate(state, innerGraph, subpopulation, thread);
-				double fitness = innerGraph.fitness.fitness();
-				if(fitness > currentFitness){
+				NSGA2MultiObjectiveFitness fitness = (NSGA2MultiObjectiveFitness)innerGraph.fitness;
+				if(fitness.paretoDominates(currentFitness) ){
 					currentFitness = fitness;
 					innerGraph.copyTo(bestGraph);
 					replaced = edge;
 					newMember = neighbour;
+				}
+				//if equal rank, compare the sparsity.
+				else if( ((MultiObjectiveFitness)fitness).equivalentTo( (MultiObjectiveFitness)currentFitness)){
+					int rankIndex = fitness.rank;
+					Individual[] dummy = new Individual[0];
+					ArrayList ranks = ((GraphState)state).getRanks();
+					Individual[] rank = (Individual[])((ArrayList)(ranks.get(rankIndex))).toArray(dummy);
+					//ArrayList list = (ArrayList)(ranks.get(rankIndex));
+					//find the index of the graph in the original rank
+					ArrayList <Individual> list = new ArrayList<Individual>(Arrays.asList(rank));
+					int i = list.indexOf(graph);
+					
+					Individual [] newRank = new Individual[list.size()];
+					newRank = list.toArray(newRank);
+					newRank[i] = innerGraph;
+					((MOGBMAEvaluator)(state.evaluator)).assignSparsity(newRank);
+					if(((NSGA2MultiObjectiveFitness)innerGraph.fitness).sparsity > currentFitness.sparsity){
+						currentFitness = fitness;
+						innerGraph.copyTo(bestGraph);
+						replaced = edge;
+						newMember = neighbour;
+					}
 				}
 			}
 		}
@@ -180,7 +195,6 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 			}else{
 				newSelection2 = null;
 			}
-			//newDomain = findEdges(tempGraph2.nodeMap.get(selected.getName()));//unnecessary
 		}
 		else{
 			newSelection2 = null;
@@ -192,17 +206,14 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 	/*
 	 * This returns the best new fitness of the graph after a local search
 	 */
-	private double findFitness1for1(Set<Node> domain, GraphInitializer init, EvolutionState state,
+	private NSGA2MultiObjectiveFitness findFitness1for1(Set<Node> domain, GraphInitializer init, EvolutionState state,
 			GraphIndividual graph, int subpopulation, int thread, Node selected){
-		((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);
-		graph.evaluated = false;
-		double currentFitness = graph.fitness.fitness();
+		//((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);
+		//graph.evaluated = false;
+		NSGA2MultiObjectiveFitness currentFitness = (NSGA2MultiObjectiveFitness)graph.fitness;
 		GraphIndividual bestGraph = new GraphIndividual();
 		Node newMember = null;//The new node added in the subgraph
 		Node replaced = null;//The old node replaced by the new node in the subgraph
-		//debug
-		//		System.out.println("nodes to replace has size"+" "+domain.size());
-
 		for (Node node : domain) {
 			Set<Node> neighbours = findNeighbourNodes(node, init);
 			for(Node neighbour: neighbours){
@@ -210,8 +221,8 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 				graph.copyTo(innerGraph);
 				replaceNode(node, neighbour, innerGraph, init);
 				((GraphEvol)state.evaluator.p_problem).evaluate(state, innerGraph, subpopulation, thread);
-				double fitness = innerGraph.fitness.fitness();
-				if(fitness > currentFitness){
+				NSGA2MultiObjectiveFitness fitness = (NSGA2MultiObjectiveFitness)innerGraph.fitness;
+				if(fitness.betterThan(currentFitness) ){
 					currentFitness = fitness;
 					innerGraph.copyTo(bestGraph);
 					replaced = node;
@@ -222,11 +233,8 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 		}
 		if(replaced!=null){
 			bestGraph.copyTo(tempGraph1);;
-			//domain.remove(replaced);//unnecessary
-			//domain.add(newMember);//unnecessary
 			if(replaced.getName().equals(selected.getName())){
 				newSelection1 = newMember;
-				//System.out.println("Root changed");//debug
 			}else{
 				newSelection1 = null;
 			}

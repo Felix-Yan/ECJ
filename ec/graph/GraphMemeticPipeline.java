@@ -110,9 +110,9 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 				nodesToReplace = findNodesToRemove(selected);//update nodesToReplace
 				edgesMemetic = findEdges(selected);//selected is a node from "currentGraph"
 				bestFitness = currentBestFitness;
-				currentFitness1 = findFitness(nodesToReplace, init, state, currentGraph, subpopulation, thread,selected);
+				currentFitness1 = findFitness1for1(nodesToReplace, init, state, currentGraph, subpopulation, thread,selected);
 				//if(newDomain.size() != 0) edgesMemetic = newDomain;
-				currentFitness2 = execute2for1(edgesMemetic, init, state, currentGraph, subpopulation, thread, selected);
+				currentFitness2 = findFitness2for1(edgesMemetic, init, state, currentGraph, subpopulation, thread, selected);
 				if(currentFitness1 >= currentFitness2){
 					tempGraph1.copyTo(currentGraph);
 					//newDomain.clear();;//reset newDomain if 2for1 is not preferred, unnecessary
@@ -144,7 +144,7 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 	/*
 	 * This returns a fitness value after performing 2-1 node local optimization.
 	 */
-	private double execute2for1(Set<Edge> domain, GraphInitializer init, EvolutionState state,
+	private double findFitness2for1(Set<Edge> domain, GraphInitializer init, EvolutionState state,
 			GraphIndividual graph, int subpopulation, int thread, Node selected){
 		((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);//graph here is the "currentGraph"
 		graph.evaluated = false;
@@ -192,7 +192,7 @@ public class GraphMemeticPipeline extends BreedingPipeline {
 	/*
 	 * This returns the best new fitness of the graph after a local search
 	 */
-	private double findFitness(Set<Node> domain, GraphInitializer init, EvolutionState state,
+	private double findFitness1for1(Set<Node> domain, GraphInitializer init, EvolutionState state,
 			GraphIndividual graph, int subpopulation, int thread, Node selected){
 		((GraphEvol)state.evaluator.p_problem).evaluate(state, graph, subpopulation, thread);
 		graph.evaluated = false;
